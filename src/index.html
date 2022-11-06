@@ -1,0 +1,114 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Video streaming</title>
+
+  <style>
+    .field {
+        padding: 0.5em;
+    }
+
+    html, body {
+        overflow: hidden;
+        margin: 0px;
+        padding: 0px;
+    }
+
+    canvas {
+        padding: 0px;
+        margin: 0px;
+        overflow: hidden;
+        background: green;
+    }
+
+    .settings {
+        background: white;
+        border: 1px solid black;
+        padding: 1em;
+        position: fixed;
+        right: 0px;
+        z-index: 100;
+        grid-template-columns: 0.5fr 1fr;
+        grid-template-rows: repeat(5, 1fr);
+        display: grid;
+    }
+  </style>
+</head>
+
+<body>
+    <canvas width=800 height=600 id="canvas" style="border: 1px solid #000; float: left; "> </canvas>
+    <div class="settings"> 
+        <span style="grid-column-start: 1; grid-row-start: 1"> Width: </span>
+        <input style="grid-column-start: 2; grid-row-start: 1" type="text" value="800" id="s_width" />
+
+        <span style="grid-column-start: 1; grid-row-start: 2"> Height: </span>
+        <input style="grid-column-start: 2; grid-row-start: 2" type="text" value="600" id="s_height" />
+
+        <span style="grid-column-start: 1; grid-row-start: 3"> FPS: </span>
+        <input style="grid-column-start: 2; grid-row-start: 3" type="text" value="15" id="s_fps" />
+
+        <span style="grid-column-start: 1; grid-row-start: 4"> Quality: </span>
+        <input style="grid-column-start: 2; grid-row-start: 4" type="text" value="80" id="s_q" />
+
+        <input id="apply" type="button" value="Применить" style="grid-column-start: 1; grid-row-start: 5;" />
+    </div>
+    <script type="text/javascript">
+        g_stream_socket = null
+
+        let canvas = document.getElementById('canvas');
+        canvas.width = document.body.clientWidth;
+        canvas.height = document.body.clientHeight;
+
+        document.getElementById('apply').onclick = () => {
+            let w = document.getElementById('s_width').value;
+            let h = document.getElementById('s_height').value;
+            let fps = document.getElementById('s_fps').value;
+            let q = document.getElementById('s_q').value;
+            let settings = JSON.stringify({
+                width: parseInt(w),
+                height: parseInt(h),
+                fps: parseInt(fps),
+                quality: parseInt(q)
+            });
+
+            if (!g_stream_socket) {
+                let ctx = canvas.getContext('2d');
+
+                let host = location.host;
+
+                let ws = new WebSocket("ws://" + host + "/stream");
+
+                ws.onopen = () => {
+                    ws.send(settings);
+                };
+
+                ws.onmessage = (m) => {
+                  let b = new Blob([m.data], {type : 'image/jpeg'});
+
+                  let reader = new FileReader();
+
+                  reader.readAsDataURL(b);
+
+                  reader.onloadend = () => {
+                     let r = reader.result;
+                     let image = new Image();
+                     image.onload = () => {
+                         ctx.fillStyle = 'green';
+                         ctx.fillRect(0, 0, ctx.width, ctx.height);
+                         ctx.drawImage(image, 0, 0);
+                     };
+                     image.src = r;
+                  };
+                };
+
+                g_stream_socket = ws;
+            } else {
+                console.log(settings);
+                g_stream_socket.send(settings);
+            }
+        };
+    </script>
+</body>
+</html>
